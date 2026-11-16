@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雅思词汇 · IELTS Vocabulary</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero">
+  <img src="uoft_stgeorge.jpg" alt="多伦多大学圣乔治校区">
+  <div class="overlay">
+    <h1>雅思词汇</h1>
+    <p>一步一步，把词汇变成自己的 · IELTS Vocabulary</p>
+  </div>
+</header>
+
+<main>
+  <!-- ===== 登录 ===== -->
+  <section id="view-login" class="card login-box">
+    <h2 class="center">欢迎回来</h2>
+    <p class="muted center">请输入你的学习码进入</p>
+    <label for="login-code">学习码</label>
+    <input id="login-code" type="text" placeholder="例如 STU-XXXX" autocomplete="off" autocapitalize="characters">
+    <div style="margin-top:14px"><button id="btn-login" style="width:100%">进入学习</button></div>
+    <div id="login-error" class="err hidden"></div>
+    <p class="muted center" style="margin-top:16px">忘记学习码？请联系 Jessica 老师。</p>
+  </section>
+
+  <!-- ===== 主应用 ===== -->
+  <section id="view-app" class="hidden">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><b id="hello-name"></b><span class="muted" id="hello-sub"></span></div>
+      <button class="ghost small" id="btn-logout">退出登录</button>
+    </div>
+    <nav class="tabs" id="nav-tabs">
+      <button data-tab="reading" class="active">📖 阅读背词</button>
+      <button data-tab="quiz">✏️ 阅读测验</button>
+      <button data-tab="listening">🎧 听力听写</button>
+      <button data-tab="review">🔁 我的复习</button>
+      <button data-tab="teacher" id="tab-teacher" class="hidden">👩‍🏫 老师看板</button>
+    </nav>
+
+    <!-- 阅读背词 -->
+    <div id="tab-reading">
+      <div class="card">
+        <h2>阅读背词 · 闪卡</h2>
+        <p class="muted">点卡片翻面看中文意思；认识就点「认识」，不认识就点「再看看」，系统会按遗忘曲线安排复习。</p>
+        <div class="row">
+          <div><label>词类</label>
+            <select id="tier-select">
+              <option value="1">第 1 类（20 词）</option>
+              <option value="2">第 2 类（100 词）</option>
+              <option value="3">第 3 类（256 词）</option>
+            </select>
+          </div>
+          <div><label>&nbsp;</label><button id="btn-shuffle-cards" class="secondary" style="width:100%">打乱顺序</button></div>
+        </div>
+        <div id="card-area" style="margin-top:16px"></div>
+        <div class="row" style="margin-top:14px">
+          <button id="btn-prev-card" class="ghost">← 上一个</button>
+          <button id="btn-unknown" class="danger">再看看</button>
+          <button id="btn-known">认识 ✓</button>
+          <button id="btn-next-card" class="ghost">下一个 →</button>
+        </div>
+        <div class="progress-bar"><div id="card-progress" style="width:0%"></div></div>
+        <p class="muted" id="card-count"></p>
+      </div>
+      <div class="card">
+        <h3>我的掌握情况</h3>
+        <div class="stat-grid" id="mastery-stats"></div>
+      </div>
+    </div>
+
+    <!-- 阅读测验 -->
+    <div id="tab-quiz" class="hidden">
+      <div class="card" id="quiz-setup">
+        <h2>阅读测验</h2>
+        <div class="row">
+          <div><label>测验模式</label>
+            <select id="quiz-mode">
+              <option value="gloss">中文意思</option>
+              <option value="synonym">同义替换</option>
+              <option value="sentence">真题例句</option>
+              <option value="review">错词重练</option>
+            </select>
+          </div>
+          <div><label>词类（例句模式不限词类）</label>
+            <select id="quiz-tier">
+              <option value="0">全部三类</option>
+              <option value="1">第 1 类</option>
+              <option value="2">第 2 类</option>
+              <option value="3">第 3 类</option>
+            </select>
+          </div>
+          <div><label>题量</label>
+            <select id="quiz-size"><option value="25">25 题</option><option value="50">50 题</option></select>
+          </div>
+        </div>
+        <p class="muted">真题例句：有真实考试句子的用真题句；没有真题句的题目会标明「练习句」。</p>
+        <button id="btn-start-quiz" style="width:100%">开始测验</button>
+      </div>
+      <div class="card hidden" id="quiz-run">
+        <div class="row"><b id="quiz-title"></b><span class="muted" id="quiz-progress" style="text-align:right"></span></div>
+        <div class="progress-bar"><div id="quiz-bar" style="width:0%"></div></div>
+        <div id="quiz-q" style="margin-top:10px"></div>
+        <div id="quiz-opts"></div>
+        <div id="quiz-feedback"></div>
+        <button id="btn-next-q" class="hidden" style="margin-top:12px;width:100%">下一题 →</button>
+      </div>
+      <div class="card hidden" id="quiz-result"></div>
+    </div>
+
+    <!-- 听力听写 -->
+    <div id="tab-listening" class="hidden">
+      <div class="card" id="listen-setup">
+        <h2>听力听写</h2>
+        <p class="muted">听原声，拼出单词。按回车确认答案，再按回车进入下一词。</p>
+        <div class="row">
+          <div><label>词套</label><select id="listen-set"></select></div>
+          <div><label>模式</label>
+            <select id="listen-mode">
+              <option value="sequential">顺序</option>
+              <option value="random">随机</option>
+              <option value="due">到期复习</option>
+            </select>
+          </div>
+          <div><label>每组词数</label>
+            <select id="listen-size"><option value="10">10 个</option><option value="20">20 个</option><option value="0">全部</option></select>
+          </div>
+        </div>
+        <button id="btn-start-listen" style="width:100%">开始听写</button>
+      </div>
+      <div class="card hidden" id="listen-run">
+        <div class="row"><b id="listen-title"></b><span class="muted" id="listen-progress" style="text-align:right"></span></div>
+        <div class="progress-bar"><div id="listen-bar" style="width:0%"></div></div>
+        <div class="center" style="margin:14px 0">
+          <button id="btn-play" style="font-size:20px;padding:14px 30px">🔊 播放发音</button>
+          <p class="muted" id="listen-hint">听一听，拼出这个单词</p>
+        </div>
+        <label for="listen-input">你的拼写</label>
+        <input id="listen-input" type="text" placeholder="输入单词后按回车" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <div id="listen-feedback"></div>
+        <p class="muted center">按回车确认答案 · 再按回车进入下一词</p>
+      </div>
+      <div class="card hidden" id="listen-result"></div>
+    </div>
+
+    <!-- 我的复习 -->
+    <div id="tab-review" class="hidden">
+      <div class="card">
+        <h2>我的复习</h2>
+        <p class="muted">遗忘曲线：答错的词明天回来；答对的词按 1 / 3 / 7 / 14 / 30 天的间隔回来。</p>
+        <div class="stat-grid" id="review-stats"></div>
+        <h3>今天到期的阅读词</h3>
+        <div id="due-words"></div>
+        <h3>今天到期的听力词</h3>
+        <div id="due-listen"></div>
+        <div class="row" style="margin-top:14px">
+          <button id="btn-review-quiz">开始错词重练</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 老师看板 -->
+    <div id="tab-teacher" class="hidden">
+      <div class="card">
+        <h2>老师看板</h2>
+        <p class="muted">全班学习情况一览。提醒名单：从没登录 / 7 天以上没登录 / 到期积压 ≥ 10 词。</p>
+        <div id="nudge-list"></div>
+      </div>
+      <div class="card"><h3>学生一览</h3><div id="teacher-students"></div></div>
+      <div class="card"><h3>全班错词（出现次数最多）</h3><div id="teacher-wrong"></div></div>
+      <div class="card">
+        <h3>改词条</h3>
+        <div class="row">
+          <div><label>词编号（1–376）</label><input id="edit-word-num" type="number" min="1" max="376" placeholder="例如 120"></div>
+          <div><label>&nbsp;</label><button id="btn-load-word" class="secondary" style="width:100%">读取词条</button></div>
+        </div>
+        <div id="edit-word-form" class="hidden">
+          <label>单词</label><input id="edit-word-word">
+          <label>词性</label><input id="edit-word-pos">
+          <label>中文意思</label><input id="edit-word-meaning">
+          <label>同义词（用英文逗号分隔）</label><input id="edit-word-syn">
+          <label>词类</label><select id="edit-word-tier"><option value="1">第 1 类</option><option value="2">第 2 类</option><option value="3">第 3 类</option></select>
+          <div style="margin-top:12px"><button id="btn-save-word">保存修改</button></div>
+          <div id="edit-word-msg"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>改例句</h3>
+        <div class="row">
+          <div><label>例句 ID</label><input id="edit-ex-num" type="number" min="1" placeholder="例如 1"></div>
+          <div><label>&nbsp;</label><button id="btn-load-ex" class="secondary" style="width:100%">读取例句</button></div>
+        </div>
+        <div id="edit-ex-form" class="hidden">
+          <label>题干</label><textarea id="edit-ex-stem" rows="2"></textarea>
+          <label>原文行</label><textarea id="edit-ex-passage" rows="2"></textarea>
+          <label>问题</label><textarea id="edit-ex-question" rows="2"></textarea>
+          <label>答案</label><input id="edit-ex-answer">
+          <label>解析</label><textarea id="edit-ex-expl" rows="2"></textarea>
+          <div style="margin-top:12px"><button id="btn-save-ex">保存修改</button></div>
+          <div id="edit-ex-msg"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>学生管理</h3>
+        <p class="muted">停用某个学生的学习码（该学生将无法登录）；写提醒会记入提醒记录。</p>
+        <div class="row">
+          <div><label>学生</label><select id="manage-student"></select></div>
+          <div><label>&nbsp;</label><button id="btn-disable-student" class="danger" style="width:100%">停用该学习码</button></div>
+        </div>
+        <label>提醒内容</label><textarea id="reminder-note" rows="2" placeholder="例如：这周还没复习，记得回来练听写"></textarea>
+        <div style="margin-top:10px"><button id="btn-add-reminder" class="secondary">写入提醒</button></div>
+        <div id="manage-msg"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>雅思词汇 · RHEC 北美升学 · 多伦多大学圣乔治校区</footer>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
