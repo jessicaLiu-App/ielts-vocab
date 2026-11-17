@@ -557,3 +557,35 @@ $("btn-add-reminder").addEventListener("click", async () => {
     $("reminder-note").value = "";
   } catch (e) { $("manage-msg").innerHTML = '<p class="err">保存失败：' + esc(e.message) + "</p>"; }
 });
+/* ---- 新建学生账号 ---- */
+function genStudentCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 去掉易混淆的 I、O、0、1
+  let code = "STU-";
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+$("btn-create-student").addEventListener("click", async () => {
+  const name = $("new-student-name").value.trim();
+  const msg = $("create-student-msg");
+  if (!name) { msg.innerHTML = '<p class="err">请先输入学生姓名。</p>'; return; }
+  const btn = $("btn-create-student"); btn.disabled = true;
+  msg.innerHTML = "";
+  let created = null, lastErr = null;
+  for (let attempt = 0; attempt < 5 && !created; attempt++) {
+    try {
+      const res = await sb("students", "POST", { name, code: genStudentCode(), is_teacher: false }, "return=representation");
+      created = Array.isArray(res) ? res[0] : res;
+    } catch (e) {
+      lastErr = e;
+      if (!/409/.test(e.message)) break; // 409 是学习码重复，换一个再试；其他错误直接停
+    }
+  }
+  btn.disabled = false;
+  if (!created) {
+    msg.innerHTML = '<p class="err">生成失败，请稍后再试' + (lastErr ? "（" + esc(lastErr.message) + "）" : "") + "。</p>";
+    return;
+  }
+  msg.innerHTML = '<p class="ok-msg">已为 ' + esc(name) + ' 生成学习码：<b>' + esc(created.code) + '</b>，请把这个码发给学生登录。</p>';
+  $("new-student-name").value = "";
+  renderTeacher();
+});
