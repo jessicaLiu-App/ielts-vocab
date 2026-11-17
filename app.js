@@ -69,7 +69,8 @@ async function enterApp() {
   $("view-app").classList.remove("hidden");
   $("hello-name").textContent = "你好，" + S.student.name + " 👋";
   $("hello-sub").textContent = S.student.is_teacher ? "（老师）· 这是你第 " + S.student.login_count + " 次登录" : " · 这是你第 " + S.student.login_count + " 次登录";
-  if (S.student.is_teacher) $("tab-teacher").classList.remove("hidden");
+  if (S.student.is_teacher) $("nav-teacher").classList.remove("hidden");
+  else $("nav-teacher").classList.add("hidden");
   try { sessionStorage.setItem("ielts_code", S.student.code); } catch (e) {}
   await loadAllData();
   renderCards(); renderMastery(); renderReview(); buildListenSets();
