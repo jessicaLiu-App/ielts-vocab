@@ -341,7 +341,7 @@ function showListenWord() {
   $("listen-hint").textContent = "听一听，拼出这个单词";
   $("listen-feedback").innerHTML = "";
   const inp = $("listen-input");
-  inp.value = ""; inp.disabled = false;
+  inp.value = ""; inp.readOnly = false;
   playCurrentAudio();
   setTimeout(() => inp.focus(), 50);
 }
@@ -362,7 +362,7 @@ async function gradeListen() {
   const given = inp.value.trim();
   const ok = given.toLowerCase() === (w.word || "").toLowerCase();
   S.listen.graded = true;
-  inp.disabled = true;
+  inp.readOnly = true;
   S.listen.answers.push({ word_id: w.id, given, correct: ok });
   if (ok) S.listen.correct++;
   $("listen-feedback").innerHTML = ok
