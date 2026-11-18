@@ -50,6 +50,7 @@ async function doLogin() {
     if (st.disabled) { err.textContent = "这个学习码已被停用，请联系 Jessica 老师。"; err.classList.remove("hidden"); return; }
     await sb("students?id=eq." + st.id, "PATCH", { login_count: (st.login_count || 0) + 1, last_login_at: new Date().toISOString() });
     st.login_count = (st.login_count || 0) + 1;
+    try { await sb("login_history", "POST", { student_id: st.id }); } catch (e) { /* 登录记录失败不影响登录 */ }
     S.student = st;
     await enterApp();
   } catch (e) {
@@ -100,11 +101,12 @@ document.querySelectorAll("#nav-tabs button").forEach(b => {
   b.addEventListener("click", () => {
     document.querySelectorAll("#nav-tabs button").forEach(x => x.classList.remove("active"));
     b.classList.add("active");
-    ["reading", "quiz", "listening", "review", "teacher"].forEach(t => $("tab-" + t).classList.add("hidden"));
+    ["reading", "quiz", "listening", "review", "wordlist", "teacher"].forEach(t => $("tab-" + t).classList.add("hidden"));
     $("tab-" + b.dataset.tab).classList.remove("hidden");
     if (b.dataset.tab === "review") renderReview();
     if (b.dataset.tab === "teacher") renderTeacher();
     if (b.dataset.tab === "reading") renderMastery();
+    if (b.dataset.tab === "wordlist") buildWordList();
   });
 });
 $("btn-login").addEventListener("click", doLogin);
@@ -301,6 +303,56 @@ async function finishQuiz() {
   renderMastery(); renderReview();
 }
 
+/* ---- 单词表（查词） ---- */
+let wordlistLoaded = false;
+async function buildWordList() {
+  if (!wordlistLoaded) {
+    try { await Promise.all(S.sets.map(s => loadListenWords(s.id))); } catch (e) {}
+    wordlistLoaded = true;
+  }
+  renderWordList();
+}
+function renderWordList() {
+  const q = ($("wordlist-search").value || "").trim().toLowerCase();
+  const res = $("wordlist-results");
+  if (!q) { res.innerHTML = '<p class="muted">阅读 376 词 + 听力 1449 词都在这里，输入上面搜索单词或中文意思。</p>'; return; }
+  const hits = [];
+  S.words.forEach(w => { if (w.word.toLowerCase().includes(q) || (w.meaning_zh || "").includes(q)) hits.push({ word: w.word, pos: w.pos, meaning: w.meaning_zh, src: "阅读 · 第" + w.tier + "类" }); });
+  Object.entries(S.lwordsBySet).forEach(([setId, list]) => {
+    const label = (S.sets.find(s => s.id === setId) || {}).label || setId;
+    (list || []).forEach(w => { if (w.word.toLowerCase().includes(q) || (w.meaning_zh || "").includes(q)) hits.push({ word: w.word, pos: w.pos, meaning: w.meaning_zh, src: "听力 · " + label }); });
+  });
+  if (!hits.length) { res.innerHTML = '<p class="err">没有找到“' + esc(q) + '”。</p>'; return; }
+  res.innerHTML = "<p class='muted'>找到 " + hits.length + " 条（只显示前 50 条）：</p>" +
+    "<table><tr><th>单词</th><th>词性</th><th>中文意思</th><th>来源</th></tr>" +
+    hits.slice(0, 50).map(h => "<tr><td><b>" + esc(h.word) + "</b></td><td>" + esc(h.pos || "") + "</td><td>" + esc(h.meaning || "") + "</td><td>" + esc(h.src) + "</td></tr>").join("") + "</table>";
+}
+$("wordlist-search").addEventListener("input", renderWordList);
+$("btn-add-word").addEventListener("click", async () => {
+  const word = $("add-word-word").value.trim();
+  const pos = $("add-word-pos").value.trim();
+  const meaning = $("add-word-meaning").value.trim();
+  const tier = parseInt($("add-word-tier").value, 10);
+  const msg = $("add-word-msg");
+  if (!word || !meaning) { msg.innerHTML = '<p class="err">单词和中文意思都要填。</p>'; return; }
+  const btn = $("btn-add-word"); btn.disabled = true;
+  try {
+    // 是否已在词库里（先查本地，再查服务器，不区分大小写）
+    if (S.words.some(w => (w.word || "").toLowerCase() === word.toLowerCase())) { msg.innerHTML = '<p class="ok-msg">“' + esc(word) + '”已经在词库里了，不用重复加。</p>'; return; }
+    const existing = await sb("words?word=ilike." + encodeURIComponent(word) + "&select=id,word");
+    if (existing && existing.length) { msg.innerHTML = '<p class="ok-msg">“' + esc(existing[0].word) + '”已经在词库里了，不用重复加。</p>'; return; }
+    const maxRow = await sb("words?select=num&order=num.desc&limit=1");
+    const num = (maxRow && maxRow[0] ? maxRow[0].num : 376) + 1;
+    const rows = await sb("words", "POST", { num, word, pos, meaning_zh: meaning, synonyms: [], tier, needs_review: true }, "return=representation");
+    if (rows && rows[0]) S.words.push(rows[0]);
+    msg.innerHTML = '<p class="ok-msg">已加进词库（编号 ' + num + '），大家现在都能查到。</p>';
+    $("add-word-word").value = ""; $("add-word-pos").value = ""; $("add-word-meaning").value = "";
+    renderWordList();
+  } catch (e) {
+    msg.innerHTML = '<p class="err">添加失败，请再试一次（' + esc(e.message) + '）。</p>';
+  } finally { btn.disabled = false; }
+});
+
 /* ---- 听力听写 ---- */
 function buildListenSets() {
   const sel = $("listen-set");
@@ -421,20 +473,21 @@ $("btn-review-quiz").addEventListener("click", () => {
 });
 
 /* ---- 老师看板 ---- */
-let T = { students: [], wprogAll: [], lprogAll: [], quizAtt: [], listenAtt: [], quizAns: [], listenAns: [] };
+let T = { students: [], wprogAll: [], lprogAll: [], quizAtt: [], listenAtt: [], quizAns: [], listenAns: [], logins: [] };
 async function renderTeacher() {
   if (!S.student || !S.student.is_teacher) return;
   try {
-    const [students, wprogAll, lprogAll, quizAtt, listenAtt, quizAns, listenAns] = await Promise.all([
+    const [students, wprogAll, lprogAll, quizAtt, listenAtt, quizAns, listenAns, logins] = await Promise.all([
       sb("students?select=*&order=id&limit=100"),
       sb("word_progress?select=*&limit=10000"),
       sb("listening_progress?select=*&limit=10000"),
       sb("quiz_attempts?select=*&order=created_at.desc&limit=500"),
       sb("listening_attempts?select=*&order=created_at.desc&limit=500"),
       sb("quiz_answers?select=attempt_id,word_id,correct&correct=eq.false&limit=2000"),
-      sb("listening_answers?select=attempt_id,word_id,correct&correct=eq.false&limit=2000")
+      sb("listening_answers?select=attempt_id,word_id,correct&correct=eq.false&limit=2000"),
+      sb("login_history?select=*&order=logged_in_at.desc&limit=1000")
     ]);
-    T = { students: students || [], wprogAll: wprogAll || [], lprogAll: lprogAll || [], quizAtt: quizAtt || [], listenAtt: listenAtt || [], quizAns: quizAns || [], listenAns: listenAns || [] };
+    T = { students: students || [], wprogAll: wprogAll || [], lprogAll: lprogAll || [], quizAtt: quizAtt || [], listenAtt: listenAtt || [], quizAns: quizAns || [], listenAns: listenAns || [], logins: logins || [] };
   } catch (e) {
     $("teacher-students").innerHTML = '<p class="err">看板数据加载失败：' + esc(e.message) + "</p>";
     return;
@@ -482,6 +535,22 @@ async function renderTeacher() {
   $("teacher-wrong").innerHTML = top.length
     ? top.map(([w, c]) => '<span class="pill">' + esc(w) + " ×" + c + "</span>").join("")
     : '<p class="muted">还没有错词记录。</p>';
+  // 每次登录 + 每次测验（各取最近 10 次）
+  const histEl = $("teacher-history");
+  if (histEl) {
+    const quizMode = { gloss: "释义", synonym: "同义", sentence: "例句", review: "错词重练" };
+    const listenMode = { sequential: "顺序", random: "随机", due: "到期复习" };
+    const acc = a => a.total ? Math.round(a.correct / a.total * 100) + "%" : "—";
+    histEl.innerHTML = T.students.map(st => {
+      const logins = T.logins.filter(l => l.student_id === st.id).slice(0, 10);
+      const qa = T.quizAtt.filter(a => a.student_id === st.id).slice(0, 10);
+      const la = T.listenAtt.filter(a => a.student_id === st.id).slice(0, 10);
+      const loginHtml = logins.length ? logins.map(l => "<li>" + fmtDate(l.logged_in_at) + "</li>").join("") : "<li class='muted'>新功能上线后还没有登录记录</li>";
+      const quizHtml = qa.length ? qa.map(a => "<li>" + fmtDate(a.created_at) + " · 测验（" + esc(quizMode[a.mode] || a.mode) + "） " + a.correct + "/" + a.total + " · " + acc(a) + "</li>").join("") : "<li class='muted'>还没有测验记录</li>";
+      const listenHtml = la.length ? la.map(a => { const label = (S.sets.find(s => s.id === a.set_id) || {}).label || a.set_id; return "<li>" + fmtDate(a.created_at) + " · 听写（" + esc(label) + " · " + esc(listenMode[a.mode] || a.mode) + "） " + a.correct + "/" + a.total + " · " + acc(a) + "</li>"; }).join("") : "<li class='muted'>还没有听写记录</li>";
+      return "<div style='border-top:1px solid var(--line);padding-top:10px;margin-top:10px'><h4 style='margin:0 0 6px'>" + esc(st.name) + (st.is_teacher ? "（老师）" : "") + "</h4><p class='muted' style='margin:4px 0'>最近登录（最多 10 次）：</p><ul>" + loginHtml + "</ul><p class='muted' style='margin:4px 0'>最近测验（最多 10 次）：</p><ul>" + quizHtml + "</ul><p class='muted' style='margin:4px 0'>最近听写（最多 10 次）：</p><ul>" + listenHtml + "</ul></div>";
+    }).join("");
+  }
   const sel = $("manage-student");
   sel.innerHTML = T.students.filter(s => !s.is_teacher).map(s => '<option value="' + s.id + '">' + esc(s.name) + "（" + esc(s.code) + "）" + (s.disabled ? " · 已停用" : "") + "</option>").join("");
 }

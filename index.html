@@ -38,6 +38,7 @@
       <button data-tab="quiz">✏️ 阅读测验</button>
       <button data-tab="listening">🎧 听力听写</button>
       <button data-tab="review">🔁 我的复习</button>
+      <button data-tab="wordlist">📋 单词表</button>
       <button data-tab="teacher" id="nav-teacher" class="hidden">👩‍🏫 老师看板</button>
     </nav>
 
@@ -162,6 +163,26 @@
       </div>
     </div>
 
+    <!-- 单词表 -->
+    <div id="tab-wordlist" class="hidden">
+      <div class="card">
+        <h2>单词表</h2>
+        <p class="muted">做题时碰到单词，在这里直接查：输入单词或中文意思的一部分就能找。阅读 376 词 + 听力 1449 词都在这里。</p>
+        <input id="wordlist-search" placeholder="输入单词或中文，例如 abnormal / 不正常" autocomplete="off">
+        <div id="wordlist-results" style="margin-top:12px"></div>
+        <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
+          <h3>没找到？加进词库</h3>
+          <p class="muted">加到全班共用的阅读词库，大家都能查到、都能背。新词会标上“待核对”，老师可以在看板里改。</p>
+          <label>单词</label><input id="add-word-word" placeholder="例如 serendipity" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <label>词性</label><input id="add-word-pos" placeholder="例如 n.">
+          <label>中文意思</label><input id="add-word-meaning" placeholder="例如 意外发现珍奇事物的运气">
+          <label>词类</label><select id="add-word-tier"><option value="3">第 3 类</option><option value="1">第 1 类</option><option value="2">第 2 类</option></select>
+          <div style="margin-top:12px"><button id="btn-add-word">加进词库</button></div>
+          <div id="add-word-msg"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 老师看板 -->
     <div id="tab-teacher" class="hidden">
       <div class="card">
@@ -170,6 +191,7 @@
         <div id="nudge-list"></div>
       </div>
       <div class="card"><h3>学生一览</h3><div id="teacher-students"></div></div>
+      <div class="card"><h3>每次登录与每次测验</h3><p class="muted">每个学生最近 10 次登录、最近 10 次测验和最近 10 次听写，每次都有准确率。登录记录从今天上线后开始记，以前的登录只有总次数。</p><div id="teacher-history"></div></div>
       <div class="card"><h3>全班错词（出现次数最多）</h3><div id="teacher-wrong"></div></div>
       <div class="card">
         <h3>改词条</h3>
