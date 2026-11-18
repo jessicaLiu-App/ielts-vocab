@@ -180,6 +180,7 @@ function pickDistractors(pool, correct, n) {
 }
 function buildQuizQuestions(mode, tier, size) {
   const pool = tier ? S.words.filter(w => w.tier === tier) : S.words.slice();
+  if (!size || size <= 0) size = pool.length; // 0 = 全部
   const qs = [];
   if (mode === "gloss") {
     shuffle(pool).slice(0, size).forEach(w => {
