@@ -38,16 +38,16 @@ function srsNext(correct, box) {
 }
 
 /* ---- 登录 ---- */
-async function doLogin() {
+async function doLogin(auto) {
   const code = $("login-code").value.trim();
   const err = $("login-error"); err.classList.add("hidden");
   if (!code) { err.textContent = "请先输入学习码。"; err.classList.remove("hidden"); return; }
   $("btn-login").disabled = true;
   try {
     const rows = await sb("students?code=eq." + encodeURIComponent(code) + "&select=*");
-    if (!rows || !rows.length) { err.textContent = "没有找到这个学习码，请检查后重新输入，或联系 Jessica 老师。"; err.classList.remove("hidden"); return; }
+    if (!rows || !rows.length) { err.textContent = "没有找到这个学习码，请检查后重新输入，或联系 Jessica 老师。"; err.classList.remove("hidden"); if (auto) { try { localStorage.removeItem("ielts_code"); } catch (e) {} } return; }
     const st = rows[0];
-    if (st.disabled) { err.textContent = "这个学习码已被停用，请联系 Jessica 老师。"; err.classList.remove("hidden"); return; }
+    if (st.disabled) { err.textContent = "这个学习码已被停用，请联系 Jessica 老师。"; err.classList.remove("hidden"); if (auto) { try { localStorage.removeItem("ielts_code"); } catch (e) {} } return; }
     await sb("students?id=eq." + st.id, "PATCH", { login_count: (st.login_count || 0) + 1, last_login_at: new Date().toISOString() });
     st.login_count = (st.login_count || 0) + 1;
     try { await sb("login_history", "POST", { student_id: st.id }); } catch (e) { /* 登录记录失败不影响登录 */ }
@@ -64,6 +64,7 @@ function doLogout() {
   $("view-login").classList.remove("hidden");
   $("login-code").value = "";
   try { sessionStorage.removeItem("ielts_code"); } catch (e) {}
+  try { localStorage.removeItem("ielts_code"); } catch (e) {}
 }
 async function enterApp() {
   $("view-login").classList.add("hidden");
@@ -72,7 +73,7 @@ async function enterApp() {
   $("hello-sub").textContent = S.student.is_teacher ? "（老师）· 这是你第 " + S.student.login_count + " 次登录" : " · 这是你第 " + S.student.login_count + " 次登录";
   if (S.student.is_teacher) $("nav-teacher").classList.remove("hidden");
   else $("nav-teacher").classList.add("hidden");
-  try { sessionStorage.setItem("ielts_code", S.student.code); } catch (e) {}
+  try { localStorage.setItem("ielts_code", S.student.code); } catch (e) {}
   await loadAllData();
   renderCards(); renderMastery(); renderReview(); buildListenSets();
   if (S.student.is_teacher) renderTeacher();
@@ -659,3 +660,10 @@ $("btn-create-student").addEventListener("click", async () => {
   $("new-student-name").value = "";
   renderTeacher();
 });
+
+/* ---- 记住登录：登录过的设备下次打开自动登录 ---- */
+(function () {
+  let saved = null;
+  try { saved = localStorage.getItem("ielts_code"); } catch (e) {}
+  if (saved) { $("login-code").value = saved; doLogin(true); }
+})();
